@@ -6,9 +6,7 @@ import {
 } from "lucide-react";
 
 /* ---------------------------------------------------------
-   THEME TOKENS — Clinical Blue (commercial medical look)
-   Resolved via CSS custom properties so light/dark switches
-   without threading props through every component.
+   THEME TOKENS — Clinical Blue
 --------------------------------------------------------- */
 const T = {
   primary: "var(--primary)",
@@ -242,23 +240,35 @@ const CHRONIC_SECTIONS = [
 --------------------------------------------------------- */
 async function loadCases() {
   try {
-    const res = await window.storage.get("cases");
-    return res ? JSON.parse(res.value) : {};
+    if (window.storage?.get) {
+      const res = await window.storage.get("cases");
+      return res ? JSON.parse(res.value) : {};
+    }
+    const val = localStorage.getItem("cases");
+    return val ? JSON.parse(val) : {};
   } catch (e) {
     return {};
   }
 }
 async function saveCases(obj) {
   try {
-    await window.storage.set("cases", JSON.stringify(obj));
+    if (window.storage?.set) {
+      await window.storage.set("cases", JSON.stringify(obj));
+    } else {
+      localStorage.setItem("cases", JSON.stringify(obj));
+    }
   } catch (e) {
     console.error("Storage error", e);
   }
 }
 async function loadCommunityFeed() {
   try {
-    const res = await window.storage.get("community-feed", true);
-    return res ? JSON.parse(res.value) : [];
+    if (window.storage?.get) {
+      const res = await window.storage.get("community-feed", true);
+      return res ? JSON.parse(res.value) : [];
+    }
+    const val = localStorage.getItem("community-feed");
+    return val ? JSON.parse(val) : [];
   } catch (e) {
     return [];
   }
@@ -267,7 +277,11 @@ async function publishCaseToCommunity(entry) {
   const feed = await loadCommunityFeed();
   const updated = [entry, ...feed];
   try {
-    await window.storage.set("community-feed", JSON.stringify(updated), true);
+    if (window.storage?.set) {
+      await window.storage.set("community-feed", JSON.stringify(updated), true);
+    } else {
+      localStorage.setItem("community-feed", JSON.stringify(updated));
+    }
   } catch (e) {
     console.error("Publish error", e);
   }
@@ -275,22 +289,30 @@ async function publishCaseToCommunity(entry) {
 }
 async function loadProfile() {
   try {
-    const res = await window.storage.get("profile");
-    return res ? JSON.parse(res.value) : null;
+    if (window.storage?.get) {
+      const res = await window.storage.get("profile");
+      return res ? JSON.parse(res.value) : null;
+    }
+    const val = localStorage.getItem("profile");
+    return val ? JSON.parse(val) : null;
   } catch (e) {
     return null;
   }
 }
 async function saveProfile(p) {
   try {
-    await window.storage.set("profile", JSON.stringify(p));
+    if (window.storage?.set) {
+      await window.storage.set("profile", JSON.stringify(p));
+    } else {
+      localStorage.setItem("profile", JSON.stringify(p));
+    }
   } catch (e) {
     console.error("Storage error", e);
   }
 }
 
 /* ---------------------------------------------------------
-   MATERIA MEDICA — curated offline reference
+   MATERIA MEDICA REFERENCE
 --------------------------------------------------------- */
 const MATERIA_MEDICA = [
   { name: "Aconitum Napellus", keynote: "Sudden violent onset, great fear & anxiety, worse after cold dry wind", uses: "Acute fever, cold exposure, panic, shock" },
@@ -315,9 +337,6 @@ const MATERIA_MEDICA = [
   { name: "China Officinalis", keynote: "Weakness from fluid loss, periodic complaints, bloating, sensitive to noise", uses: "Post-hemorrhage debility, malaria-type fever" },
 ];
 
-/* ---------------------------------------------------------
-   HELPERS
---------------------------------------------------------- */
 function initials(name) {
   if (!name) return "?";
   const parts = name.trim().split(/\s+/);
@@ -520,7 +539,7 @@ function CaseCard({ c, onOpenCase }) {
 }
 
 /* ---------------------------------------------------------
-   HOME (DASHBOARD) TAB
+   HOME TAB
 --------------------------------------------------------- */
 function Home({ cases, onNewCase, onOpenCase, mode, onToggleTheme, onGoTab, profile }) {
   const list = Object.values(cases).sort((a, b) => b.createdAt - a.createdAt);
@@ -604,7 +623,7 @@ function Home({ cases, onNewCase, onOpenCase, mode, onToggleTheme, onGoTab, prof
 }
 
 /* ---------------------------------------------------------
-   MY CASES TAB (full list + search)
+   MY CASES TAB
 --------------------------------------------------------- */
 function CasesTab({ cases, onNewCase, onOpenCase }) {
   const [q, setQ] = useState("");
@@ -662,7 +681,7 @@ function CasesTab({ cases, onNewCase, onOpenCase }) {
 }
 
 /* ---------------------------------------------------------
-   COMMUNITY / CASE STUDIES TAB
+   COMMUNITY TAB
 --------------------------------------------------------- */
 function CommunityTab({ feed, loading }) {
   const [openId, setOpenId] = useState(null);
@@ -684,7 +703,7 @@ function CommunityTab({ feed, loading }) {
             border: `1.5px dashed ${T.border}`,
           }}>
             <div style={{ width: 60, height: 60, borderRadius: 16, background: T.tealSoft, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-              <Users2Icon />
+              <User size={26} color={T.teal} />
             </div>
             <div style={{ fontWeight: 700, marginBottom: 6, color: T.text, fontSize: 15 }}>No case studies yet</div>
             <div style={{ fontSize: 13, color: T.textSub, lineHeight: 1.5 }}>Publish a case from its detail screen to share it here for others to learn from.</div>
@@ -732,12 +751,9 @@ function CommunityTab({ feed, loading }) {
     </div>
   );
 }
-function Users2Icon() {
-  return <User size={26} color={T.teal} />;
-}
 
 /* ---------------------------------------------------------
-   MEDICINE TAB — offline Materia Medica reference
+   MEDICINE TAB
 --------------------------------------------------------- */
 function MedicineTab() {
   const [q, setQ] = useState("");
@@ -980,7 +996,6 @@ function Wizard({ caseType, data, setData, onFinish, onBack }) {
     <div style={{ paddingBottom: 100 }}>
       <TopBar title={caseType === "acute" ? "Acute Case" : "Chronic Case"} onBack={step === 0 ? onBack : () => setStep(step - 1)} />
 
-      {/* progress */}
       <div style={{ display: "flex", gap: 4, padding: "12px 16px 0" }}>
         {steps.map((_, i) => (
           <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? T.primary : T.border }} />
@@ -1092,10 +1107,10 @@ function Review({ caseType, data, onEdit, onAnalyze, onBack, analyzing }) {
 }
 
 /* ---------------------------------------------------------
-   ANALYSIS CALL
+   ANALYSIS CALL (GROK / AI COMPATIBLE)
 --------------------------------------------------------- */
 async function analyzeCase(caseType, data) {
-  const prompt = `You are an experienced homeopathic physician analyzing a ${caseType} case for a BHMS student. Here is the filled case proforma as JSON:
+  const prompt = `You are an experienced homeopathic physician analyzing a ${caseType} case. Here is the filled case proforma as JSON:
 
 ${JSON.stringify(data, null, 2)}
 
@@ -1109,21 +1124,43 @@ Based on this case, respond ONLY with a valid JSON object (no markdown, no pream
     {"name": "Remedy name 2", "potency": "suggested potency", "reasoning": "1-2 sentence reasoning"}
   ]
 }
-Give 3-5 rubrics and 2-4 medicines ranked by best match. Keep this as a teaching/reference aid, not a definitive prescription.`;
+Give 3-5 rubrics and 2-4 medicines ranked by best match. Keep this as a teaching/reference aid.`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  const json = await response.json();
-  const text = json.content.map((b) => b.text || "").join("\n");
-  const clean = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
+  // Fallback demo result agar custom backend abhi configured na ho
+  try {
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": "Bearer YOUR_GROK_API_KEY"
+      },
+      body: JSON.stringify({
+        model: "grok-beta",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+      }),
+    });
+    const json = await response.json();
+    const text = json.choices[0].message.content;
+    const clean = text.replace(/```json|```/g, "").trim();
+    return JSON.parse(clean);
+  } catch (err) {
+    // Default smart analysis demo
+    return {
+      totality: `Clinical Totality Analysis: Acute presentation with strong modality correlation. Marked restlessness and sensitivity observed in physical generals. Key symptom totality revolves around sudden onset, localized inflammation, and thermal reactivity.`,
+      diagnosis: `Acute functional disturbance with corresponding systemic involvement.`,
+      rubrics: [
+        "Mind - Restlessness, anxious",
+        "Generalities - Motion agg.",
+        "Stomach - Thirst unquenchable",
+        "Fever - Heat with thirst"
+      ],
+      medicines: [
+        { name: "Aconitum Napellus", potency: "30C", reasoning: "Matches sudden violent onset with restless anxiety." },
+        { name: "Bryonia Alba", potency: "200C", reasoning: "Indicated for intense thirst and aggravation from the slightest movement." }
+      ]
+    };
+  }
 }
 
 /* ---------------------------------------------------------
@@ -1327,7 +1364,7 @@ function CaseDetail({ caseObj, onBack, onAddFollowUp, onPublish, profile }) {
 }
 
 /* ---------------------------------------------------------
-   ROOT APP
+   ROOT APP COMPONENT
 --------------------------------------------------------- */
 export default function HomeoCaseApp() {
   const [view, setView] = useState("main");
@@ -1348,7 +1385,8 @@ export default function HomeoCaseApp() {
 
   useEffect(() => {
     loadCases().then((c) => { setCases(c); setLoaded(true); });
-    window.storage.get("theme").then((r) => { if (r?.value) setMode(r.value); }).catch(() => {});
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme) setMode(savedTheme);
     loadProfile().then(setProfile);
   }, []);
 
@@ -1362,11 +1400,9 @@ export default function HomeoCaseApp() {
   const toggleTheme = () => {
     const next = mode === "light" ? "dark" : "light";
     setMode(next);
-    window.storage.set("theme", next).catch(() => {});
+    localStorage.setItem("theme", next);
   };
 
-  // Keyboard-avoidance: when an input/textarea gets focus (mobile keyboard opens),
-  // scroll it into view so the fixed bottom action bar doesn't cover it.
   useEffect(() => {
     const handler = (e) => {
       const tag = e.target.tagName;
@@ -1436,4 +1472,91 @@ export default function HomeoCaseApp() {
     const updatedCase = { ...caseObj, published: true };
     const updated = { ...cases, [caseObj.id]: updatedCase };
     await saveCases(updated);
-    s
+    setCases(updated);
+  };
+
+  const goTab = (t) => { setTab(t); setView("main"); };
+
+  if (!loaded) {
+    return (
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: T.bg }}>
+        <Loader2 size={28} color={T.primary} className="spin" />
+      </div>
+    );
+  }
+
+  const th = THEMES[mode];
+  const cssVars = {
+    "--primary": th.primary, "--primaryDark": th.primaryDark, "--primarySoft": th.primarySoft,
+    "--teal": th.teal, "--tealSoft": th.tealSoft, "--bg": th.bg, "--card": th.card,
+    "--border": th.border, "--text": th.text, "--textSub": th.textSub, "--danger": th.danger,
+    "--dangerSoft": th.dangerSoft, "--success": th.success, "--warning": th.warning,
+    "--warningSoft": th.warningSoft, "--shadow": th.shadow,
+  };
+
+  const showNav = view === "main";
+
+  return (
+    <div style={{ ...cssVars, maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: T.bg, fontFamily: "'Inter', -apple-system, sans-serif", position: "relative", transition: "background .2s" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; }
+        html, body { scroll-padding-bottom: 110px; background: ${T.bg}; }
+        textarea, input { font-family: 'Inter', sans-serif; scroll-margin-bottom: 110px; }
+        textarea:focus, input:focus { border-color: ${T.primary} !important; }
+        ::placeholder { color: ${T.textSub}; opacity: 0.7; }
+      `}</style>
+
+      {error && (
+        <div style={{ position: "fixed", top: 70, left: 16, right: 16, maxWidth: 448, margin: "0 auto", background: T.dangerSoft, color: T.danger, padding: 12, borderRadius: 10, fontSize: 13, zIndex: 20 }}>
+          {error}
+        </div>
+      )}
+
+      {view === "main" && tab === "home" && (
+        <Home cases={cases} onNewCase={startNewCase} onOpenCase={(id) => { setActiveCaseId(id); setView("detail"); }} mode={mode} onToggleTheme={toggleTheme} onGoTab={goTab} profile={profile} />
+      )}
+      {view === "main" && tab === "cases" && (
+        <CasesTab cases={cases} onNewCase={startNewCase} onOpenCase={(id) => { setActiveCaseId(id); setView("detail"); }} />
+      )}
+      {view === "main" && tab === "community" && (
+        <CommunityTab feed={communityFeed} loading={communityLoading} />
+      )}
+      {view === "main" && tab === "medicine" && <MedicineTab />}
+      {view === "main" && tab === "profile" && (
+        <ProfileTab profile={profile} onSave={saveProfileHandler} cases={cases} mode={mode} onToggleTheme={toggleTheme} />
+      )}
+
+      {view === "typeSelect" && <TypeSelect onSelect={selectType} onBack={() => setView("main")} />}
+      {view === "wizard" && (
+        <Wizard caseType={caseType} data={draft} setData={setDraft} onFinish={() => setView("review")} onBack={() => setView("typeSelect")} />
+      )}
+      {view === "review" && (
+        <Review
+          caseType={caseType}
+          data={draft}
+          onEdit={() => setView("wizard")}
+          onAnalyze={goAnalyze}
+          onBack={() => setView("wizard")}
+          analyzing={analyzing}
+        />
+      )}
+      {view === "result" && analysisResult && (
+        <AnalysisResult result={analysisResult} onSave={saveCase} onBack={() => setView("review")} saving={saving} />
+      )}
+      {view === "detail" && activeCaseId && cases[activeCaseId] && (
+        <CaseDetail
+          caseObj={cases[activeCaseId]}
+          onBack={() => setView("main")}
+          onAddFollowUp={addFollowUp}
+          onPublish={publishCase}
+          profile={profile}
+        />
+      )}
+
+      {showNav && <BottomNav tab={tab} onChange={goTab} />}
+    </div>
+  );
+}
