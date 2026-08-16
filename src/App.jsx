@@ -1,3 +1,4 @@
+cat << 'EOF' > src/App.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Stethoscope, Plus, ChevronLeft, ChevronRight, FileText, Activity,
